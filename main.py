@@ -50,6 +50,11 @@ def preprocess_image(image_bytes):
         logger.error(f"Error processing image: {str(e)}")
         raise
 
+# Root endpoint
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the Diabetic Retinopathy Detection API"}
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     logger.info(f"Received file: {file.filename}")
