@@ -30,6 +30,54 @@ except Exception as e:
 
 SEVERITY_LEVELS = ["Mild Non-Proliferative Diabetic Retinopathy", "Moderate Non-Proliferative Diabetic Retinopathy", "Severe Non-Proliferative Diabetic Retinopathy", "Proliferative Diabetic Retinopathy"]
 
+def get_recommendations_by_severity(severity):
+    #Common recommendations for all DR patients
+    common_recommendations = [
+        "Maintain strict blood glucose control",
+        "Regular monitoring of HbA1c levels",
+        "Control blood pressure and cholesterol",
+        "Follow a healthy diet and exercise routine"
+    ]
+    
+    #Severity-specific recommendations
+    if severity == "No Diabetic Retinopathy":
+        return [
+            "Schedule annual diabetic eye screening",
+            "Monitor blood sugar levels regularly",
+            "Report any vision changes to your healthcare provider"
+        ]
+    elif severity == "Mild Non-Proliferative Diabetic Retinopathy":
+        return common_recommendations + [
+            "Follow-up eye examination in 6-12 months",
+            "Optimize diabetes management",
+            "Report any vision changes immediately"
+        ]
+    elif severity == "Moderate Non-Proliferative Diabetic Retinopathy":
+        return common_recommendations + [
+            "Follow-up eye examination in 4-6 months",
+            "Consider consultation with endocrinologist for diabetes management",
+            "More frequent blood glucose monitoring",
+            "Watch for symptoms like blurred vision or floaters"
+        ]
+    elif severity == "Severe Non-Proliferative Diabetic Retinopathy":
+        return common_recommendations + [
+            "Follow-up eye examination in 2-3 months",
+            "Consultation with retina specialist recommended",
+            "Consider laser treatment evaluation",
+            "Urgent notification of any vision changes",
+            "Strict adherence to diabetes medication regimen"
+        ]
+    elif severity == "Proliferative Diabetic Retinopathy":
+        return common_recommendations + [
+            "Immediate referral to retina specialist",
+            "Potential need for laser photocoagulation or anti-VEGF injections",
+            "Monthly eye examinations may be necessary",
+            "Careful monitoring for signs of diabetic macular edema",
+            "Avoid strenuous activities that might increase eye pressure"
+        ]
+    else:
+        return ["Please consult with your healthcare provider for recommendations"]
+
 #Root endpoint
 @app.get("/")
 async def read_root():
@@ -39,15 +87,15 @@ async def read_root():
 async def predict(file: UploadFile = File(...)):
     logger.info(f"Received file: {file.filename}")
     try:
-        # Read the image file
+        #Read the image file
         contents = await file.read()
         logger.info("File read successfully")
         
-        # Open and preprocess the image
+        #Open and preprocess the image
         image = Image.open(io.BytesIO(contents))
         logger.info(f"Image opened successfully. Mode: {image.mode}")
         
-        # Convert RGBA to RGB (if necessary)
+        #Convert RGBA to RGB (if necessary)
         if image.mode == 'RGBA':
             image = image.convert('RGB')
             logger.info("Converted RGBA to RGB")
@@ -78,19 +126,26 @@ async def predict(file: UploadFile = File(...)):
             severity = SEVERITY_LEVELS[severity_index]
             severity_confidence = float(multiclass_prediction[0][severity_index]) * 100
             
+            #Get recommendations based on severity
+            recommendations = get_recommendations_by_severity(severity)
+            
             result = {
                 "result": "Diabetic Retinopathy",
                 "severity": severity,
-                "confidence": severity_confidence
+                "confidence": severity_confidence,
+                "recommendations": recommendations
             }
             
             logger.info(f"DR detected. Severity: {severity}, Confidence: {severity_confidence}%")
         else:
             #No DR detected
+            #Get recommendations for No DR
+            recommendations = get_recommendations_by_severity("No Diabetic Retinopathy")
             result = {
                 "result": "No Diabetic Retinopathy",
                 "severity": "No Diabetic Retinopathy",
-                "confidence": (1 - binary_score) * 100
+                "confidence": (1 - binary_score) * 100,
+                "recommendations": recommendations
             }
             
             logger.info(f"No DR detected. Confidence: {(1 - binary_score) * 100}%")
@@ -151,7 +206,7 @@ def predict_dr(image):
         logger.error(f"Error making prediction: {str(e)}")
         raise
 
-#Generate recommendations based on results
+#Generate recommendations based on DR progression results 
 def generate_recommendations(baseline_result, followup_result):
     
     recommendations = []
